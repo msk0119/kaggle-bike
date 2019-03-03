@@ -216,18 +216,23 @@ logger = getLogger(__name__)
 # In[ ]:
 
 
-kf = KFold(n_splits=5, shuffle=True, random_state=0)
+kf = KFold(n_splits=3, shuffle=False, random_state=0)
 
-all_params = {'max_depth': [3, 5, 7],
+all_params = {#'max_depth': [3, 5, 7],
+    'max_depth': [3],
               'learning_rate':[0.1],
-              'min_child_weight':[1, 3, 5, 7],
+              #'min_child_weight':[1, 3, 5, 7],
+    'min_child_weight':[5],
              'n_estimators':[10000],
               'colsample_bytree': [0.8, 0.9, 1],
               'colsample_bylevel':[0.8, 0.9, 1],
-              'reg_alpha':[0, 0.1],
-              'max_delta_step':[0, 0.1],
+              'reg_alpha':[0.1],
+              'max_delta_step':[0],
+              'subsample':[0.8, 0.9,1],
+              'reg_lambda':[0.1, 1, 10],
+              #'gammma':[0],
             'n_jobs':[-1],
-            'random_state':[0],
+            #'random_state':[0],
              'seed':[0]}
 
 x_train = df[feats]
@@ -253,7 +258,7 @@ for params in tqdm(list(ParameterGrid(all_params))):
     
         clf = xgb.sklearn.XGBRegressor(**params)
         clf.fit(trn_x, trn_y, eval_set=[(val_x, val_y)], early_stopping_rounds=100, eval_metric="rmse")
-        y_pred = clf.predict(val_x)
+        y_pred = clf.predict(val_x, ntree_limit=clf.best_ntree_limit)
     
         sc_logmse = logmse(val_y, y_pred)
     
@@ -266,10 +271,13 @@ for params in tqdm(list(ParameterGrid(all_params))):
     if min_score > sc_logmse:
         min_score = sc_logmse
         min_params = params
-
+    
+    logger.info('minimam params:{}'.format(min_params))
+    logger.info('minimam logmse:{}'.format(min_score))
+        
 logger.info('minimam params:{}'.format(min_params))
 logger.info('minimam logmse:{}'.format(min_score))
-print('minimam logmse:{}',min_score)
+#print('minimam logmse:{}',min_score)
 clf = xgb.sklearn.XGBRegressor(**min_params)
 clf.fit(x_train, y_train)
 
@@ -296,6 +304,13 @@ test['count'] = np.exp(clf.predict(test[feats]))
 
 
 test[['datetime', 'count']].to_csv(DIR + 'xgb_gs.csv', index=False)
+
+
+# In[ ]:
+
+
+#clf = xgb.sklearn.XGBRegressor(base_score=0.5, booster='gbtree', colsample_bylevel=0.8,       colsample_bytree=0.9, gamma=0, learning_rate=0.01, max_delta_step=0,  max_depth=7, min_child_weight=7, missing=None, n_estimators=343,n_jobs=-1, nthread=None, objective='reg:linear', random_state=0, reg_alpha=0.1, reg_lambda=1, scale_pos_weight=1, seed=0, silent=True, subsample=1)
+#clf.fit(x_train, y_train)
 
 
 # In[ ]:
